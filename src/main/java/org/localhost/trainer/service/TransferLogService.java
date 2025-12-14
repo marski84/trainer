@@ -15,9 +15,13 @@ public class TransferLogService {
         this.transferLogRepository = transferLogRepository;
     }
 
-
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void saveTransferLog(String message, TransferStatus status) {
-        transferLogRepository.save(new TransferLog(message, status));
+    public void logError(String msg) {
+        transferLogRepository.save(new TransferLog(msg, TransferStatus.FAILURE));
+    }
+
+    @Transactional(propagation = Propagation.REQUIRED)
+    public void logSuccess(String msg) {
+        transferLogRepository.save(new TransferLog(msg, TransferStatus.SUCCESS));
     }
 }

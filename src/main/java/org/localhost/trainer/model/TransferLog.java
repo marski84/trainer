@@ -17,4 +17,8 @@ public class TransferLog {
         this.message = message;
         this.status = status;
     }
+
+    public TransferLog() {
+
+    }
 }

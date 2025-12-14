@@ -1,20 +1,20 @@
 package org.localhost.trainer.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.localhost.trainer.model.Wallet;
-import org.localhost.trainer.model.enumeration.TransferStatus;
-import org.localhost.trainer.repository.TransferLogRepository;
 import org.localhost.trainer.repository.WalletRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 public class WalletTransferService {
 
     private final WalletRepository walletRepository;
     private final TransferLogService transferLogService;
 
 
-    public WalletTransferService(WalletRepository walletRepository, TransferLogRepository transferLogRepository, TransferLogService transferLogService) {
+    public WalletTransferService(WalletRepository walletRepository, TransferLogService transferLogService) {
         this.walletRepository = walletRepository;
         this.transferLogService = transferLogService;
     }
@@ -22,23 +22,30 @@ public class WalletTransferService {
     @Transactional
     public void transferMoney(Long fromWalletId, Long toWalletId, double amount) {
 
-        Wallet fromWallet = walletRepository.findById(fromWalletId).orElseThrow(() ->
-        {
-            transferLogService.saveTransferLog("Transfer from wallet " + fromWalletId + " to wallet " + toWalletId + " of amount " + amount, TransferStatus.FAILURE);
-            return new RuntimeException("Wallet not found!");
-        });
+        log.info("Transfering {} from wallet {} to wallet {}", amount, fromWalletId, toWalletId);
 
-        Wallet toWallet = walletRepository.findById(toWalletId).orElseThrow(() ->
-        {
-            transferLogService.saveTransferLog("Transfer from wallet " + fromWalletId + " to wallet " + toWalletId + " of amount " + amount, TransferStatus.FAILURE);
-            return new RuntimeException("Wallet not found!");
-        });
-        fromWallet.setBalance(fromWallet.getBalance() - amount);
-        toWallet.setBalance(toWallet.getBalance() + amount);
+        String logMsg = "Transfering %s from wallet %s to wallet %s".formatted(amount, fromWalletId, toWalletId);
 
-        transferLogService.saveTransferLog("Transfer from wallet " + fromWalletId + " to wallet " + toWalletId + " of amount " + amount, TransferStatus.SUCCESS);
+        try {
+            Wallet fromWallet = walletRepository.findById(fromWalletId).orElseThrow(() -> new RuntimeException("Wallet not found!"));
+            Wallet toWallet = walletRepository.findById(toWalletId).orElseThrow(() -> new RuntimeException("Wallet not found!"));
 
 
+            if (fromWallet.getBalance() < amount) {
+                throw new RuntimeException("Niewystarczające środki!");
+            }
+
+            fromWallet.setBalance(fromWallet.getBalance() - amount);
+            toWallet.setBalance(toWallet.getBalance() + amount);
+
+            transferLogService.logSuccess(logMsg);
+
+
+        } catch (Exception e) {
+            log.error("Error during transfer: {}", logMsg);
+            transferLogService.logError(logMsg);
+            throw new RuntimeException(e);
+        }
     }
 
 
